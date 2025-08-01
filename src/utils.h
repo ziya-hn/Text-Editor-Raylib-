@@ -42,66 +42,6 @@ Module z
 
 
 
-template <typename StorageType, typename T>
-class Grid
-{
-private:
-    StorageType data;
-
-public:
-    Grid() {
-        if constexpr (std::is_same_v<StorageType, std::vector<std::vector<T>>>) {
-            constexpr size_t height = 5;  // example fixed height
-            constexpr size_t width = 8;   // example fixed width
-            data.resize(height);
-            for (auto& row : data)
-                row.resize(width);
-        }
-    }
-
-    uchar& operator()(size_t x, size_t y) {
-        return data[y][x];
-    }
-
-    const uchar& operator()(size_t x, size_t y) const {
-        return data[y][x];
-    }
-
-    // Return total number of elements
-    constexpr uint64 size() const {
-        if constexpr (std::is_same_v<StorageType, std::array<std::array<T, 8>, 5>>) {
-            return 8 * 5;
-        } else if constexpr (std::is_same_v<StorageType, std::vector<std::vector<T>>>) {
-            return data.size() * (data.empty() ? 0 : data[0].size());
-        } else {
-            return 0;
-        }
-    }
-
-    // Get width (number of columns)
-    uint64 getWidth() const {
-        if constexpr (std::is_same_v<StorageType, std::array<std::array<T, 8>, 5>>) {
-            return 8;
-        } else if constexpr (std::is_same_v<StorageType, std::vector<std::vector<T>>>) {
-            return data.empty() ? 0 : data[0].size();
-        } else {
-            return 0;
-        }
-    }
-
-    // Get height (number of rows)
-    uint64 getHeight() const {
-        if constexpr (std::is_same_v<StorageType, std::array<std::array<T, 8>, 5>>) {
-            return 5;
-        } else if constexpr (std::is_same_v<StorageType, std::vector<std::vector<T>>>) {
-            return data.size();
-        } else {
-            return 0;
-        }
-    }
-};
-
-
 
 
 // FIXED Strvec class (replace in utils.h):
@@ -109,6 +49,7 @@ class Strvec
 {
 public:
     std::vector<string> data;
+    mutable uint64 last_max_width = 100;
 
     char& operator()(uint x, uint y) {
         // Expand vertically if needed
@@ -116,8 +57,13 @@ public:
             data.resize(y + 1);
 
         // Expand horizontally if needed
-        if (x >= data[y].size())
-            data[y].resize(x + 1, '\0'); // Use '\0' instead of ' ' for empty cells
+        if (x >= data[y].size()) {
+            data[y].resize(x + 1, '\0');
+            // Update max_width if this row is now longer
+            if (data[y].size() > last_max_width) {
+                last_max_width = data[y].size();
+            }
+        }
 
         return data[y][x];
     }
@@ -137,21 +83,16 @@ public:
         return data.at(i);
     }
     
-    // FIXED: Return maximum width across all rows
+    // FIXED: Just return the cached width instead of calculating every time
     uint64 getWidth() const {
-        if (data.empty()) return 100; // Return reasonable default
-        
-        uint64 max_width = 0;
-        for (const auto& row : data) {
-            max_width = std::max(max_width, (uint64)row.size());
-        }
-        return std::max(max_width, (uint64)100); // Ensure minimum width
+        return last_max_width;
     }
 
     uint64 getHeight() const {
-        return std::max((uint64)data.size(), (uint64)50); // Ensure minimum height
+        return std::max((uint64)data.size(), (uint64)50);
     }
 };
+
 
 
 

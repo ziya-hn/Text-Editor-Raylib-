@@ -13,14 +13,24 @@ int main(int, char*[])
 
     SETUP();
     
+
+    uint16 frames = 0u;
+    f64 timer = GetTime();
     while (!WindowShouldClose())
     {
-        SetWindowTitle(std::to_string(FPS).c_str());
+        ++frames;
+        f64 now = GetTime();
+        if (now - timer >= 1.0) {
+            SetWindowTitle(std::to_string(frames).c_str());
+            frames = 0u;
+            timer = now;
+        }
+
         UPDATE();
         
         //BeginDrawing();
         //    ClearBackground(win_clr);
-            RENDER();
+        //    RENDER();
         //EndDrawing();
     }
 

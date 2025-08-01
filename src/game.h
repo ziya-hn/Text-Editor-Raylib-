@@ -23,32 +23,60 @@ inline namespace Settings
 extern Font font;
 
 
+enum K_Keys
+{
+    //  Movement-Keys
+    k_right =  KEY_RIGHT,
+    k_left  =  KEY_LEFT,
+    k_up    =  KEY_UP,
+    k_down  =  KEY_DOWN,
+
+    //  Control-Keys
+    k_enter     =  KEY_ENTER,
+    k_esc       =  KEY_ESCAPE,
+    k_space     =  KEY_SPACE,  // yeah, its not control-key
+    k_backspace =  KEY_BACKSPACE,
+    Kdelete  =  KEY_DELETE,
+
+
+
+    //  Numpad-Keys
+    k_numpad_0 =  KEY_KP_0,
+    k_numpad_1 =  KEY_KP_1,
+    k_numpad_2 =  KEY_KP_2,
+    k_numpad_3 =  KEY_KP_3,
+    k_numpad_4 =  KEY_KP_4,
+    k_numpad_5 =  KEY_KP_5,
+    k_numpad_6 =  KEY_KP_6,
+    k_numpad_7 =  KEY_KP_7,
+    k_numpad_8 =  KEY_KP_8,
+    k_numpad_9 =  KEY_KP_9,
+
+
+};
+
 
 struct GFX
 {
     void write(const char *text, Vector2 pos, Color color = {WHITE},
-        uint fsize = 24, f spacing = 0.5f) const{
+        uint fsize = 24, f spacing = 0.5f) const {
 
-        //    BeginDrawing();
         DrawTextEx(font, text, pos, fsize, spacing, color);
-        //    EndDrawing();
     }
 
     void write(const char text, Vector2 pos, Color color = {WHITE},
-        uint fsize = 40, f spacing = 0.5f) const{
+        uint fsize = 40, f spacing = 0.5f) const {
 
-        //    BeginDrawing();
         DrawTextEx(font, tostr(text).c_str(), pos, fsize, spacing, color);
-        //    EndDrawing();
     }
 
 
 
-    void drawRect(Rectangle rec, Color color, f radius=0.f) const{
+    void drawRect(Rectangle rec, Color color, f radius=0.f) const {
         DrawRectangleRounded(rec, radius, 10000, color);
     }
 
-    void drawCircle(Vector2 pos, uint radius, Color color) const{
+    void drawCircle(Vector2 pos, uint radius, Color color) const {
         DrawCircle(pos.x, pos.y, radius, color);
     }
 };
@@ -56,13 +84,14 @@ struct GFX
 constexpr GFX gfx;
 
 
-
-struct Uvec2
+Module z
 {
+    inline bool hadKeyPressing(KeyboardKey _key) {
+        return  { IsKeyPressed(_key) || IsKeyPressedRepeat(_key) };
+    }
+    // overload of @fn hadKeyPressing
+    inline bool hadKeyPressing(K_Keys _key) {
+    return  { IsKeyPressed(_key) || IsKeyPressedRepeat(_key) };
+    }
+}
 
-    // overall size
-    uint16 size = sizeof(uint)*2;
-
-    uint x;
-    uint y;
-};

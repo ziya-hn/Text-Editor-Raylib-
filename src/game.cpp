@@ -2,23 +2,22 @@
 
 #include "game.h"
 
+#if __cplusplus >= 202302  /// Compiler should be flagged as at least `-std=c++23`
 
 
 Font font;
 
-
-
-Module G
+Module G  ///  Global/Editor, short name convention
 {
     constexpr Color bgcolor = { 9, 16, 30, 255 };
 
     constexpr uint xofs =  80u;
     constexpr uint yofs = 120u;
 
-    constexpr uint width  = win_w - 2*xofs;
-    constexpr uint height = win_h - 2*yofs;
+    constexpr uint scene_width  = win_w - 2*xofs;
+    constexpr uint scene_height = win_h - 2*yofs;
 
-    Rectangle rec = { xofs, yofs, width, height };
+    Rectangle rec = { xofs, yofs, scene_width, scene_height };
 
     Strvec map;
 
@@ -29,10 +28,12 @@ Module G
     
     void loop(void)
     {
-        if (IsKeyPressedRepeat(KEY_RIGHT))     log "`right` -pressed\n";
-        else if (IsKeyPressedRepeat(KEY_LEFT)) log "`left` -pressed\n" ;
-        else if (IsKeyPressedRepeat(KEY_UP))   log "`up` -pressed\n" ;
-        else if (IsKeyPressedRepeat(KEY_DOWN)) log "`down` -pressed\n" ;
+        using Module z;
+
+        if     ( hadKeyPressing(k_right) )  log "`right` -pressed\n";
+        else if ( hadKeyPressing(k_left)  )  log "`left` -pressed\n";
+        else if ( hadKeyPressing(k_up)    )  log "`up` -pressed\n"  ;
+        else if ( hadKeyPressing(k_down)  )  log "`down` -pressed\n";
         else;
 
     }
@@ -48,11 +49,11 @@ Module G
 struct Cursor
 {
     Color color =  { 200, 200, 200, 200 };
-    constexpr static f  radius   =  { 0.25 };
+    constexpr static f  radius   =  { 0.5f };
 
     constexpr static const char* font =  "Assets\\CascadiaCode-Bold.ttf";
     uint fontsize     =  32u;
-    Color font_color  =  { 240, 240, 240 };
+    Color font_color  =  { 240, 240, 240, 255 };
 
 
     //  Cursor draw style
@@ -70,10 +71,12 @@ struct Cursor
 
     Vector2 index =  { 0, 0 };
 
-    uint width  =  32u;
-    uint height =  50u;
+    f G_n_Cursor_scale_X$ratio =  42;
+    f G_n_Cursor_scale_Y$ratio =  12;
+    uint width  =  G::scene_width / G_n_Cursor_scale_X$ratio;
+    uint height =  G::scene_height / G_n_Cursor_scale_Y$ratio;
 
-    f cursor_ln_w_rate =  0.9f;
+    f cursor_ln_w_rate =  0.05f;
 
     Rectangle rec = { pos.x, pos.y, (f)width, (f)height };
 
@@ -106,6 +109,8 @@ struct Cursor
         rec.x = pos.x;
         rec.y = pos.y;
 
+        z::limit<f>( pos.x, G::xofs ,  G::xofs + G::scene_width - this->width );
+        z::limit<f>(pos.y, G::yofs ,  G::yofs + G::scene_height - this->height);
 
 
         //  Handle draw-style with numpad[0]
@@ -121,7 +126,7 @@ struct Cursor
         else if (CURRENT == CDS::rectangle  && IsKeyPressed(KEY_KP_0)) {
             CURRENT =  CDS::capsule;
         }
-        else;  // Bəzəyə qoydum bunu 😔✌️
+        else;  // Bəzəyə qoydum bunu 🥀
 
     }
 
@@ -136,11 +141,11 @@ struct Cursor
 
             case CDS::line :
             {
-                using _Rct = Rectangle;
+                using Rc = Rectangle;
                 gfx.drawRect
                 (
-            _Rct{pos.x + (width * cursor_ln_w_rate), pos.y, width * cursor_ln_w_rate, (f)height},
-            this->color, this->radius
+                    Rc {pos.x + (width * (1-cursor_ln_w_rate)) - width, pos.y, width * cursor_ln_w_rate, (f)height} ,
+                    this->color ,  this->radius
                 );
             }  break;
 
@@ -183,12 +188,14 @@ void SETUP(void)
 
 
 
-void UPDATE(void)
+ void UPDATE(void)
 {
-    bool righting = IsKeyPressed(KEY_RIGHT);
+    using Module z;
+
+    bool righting = IsKeyPressed(k_right);
     bool  lefting = IsKeyPressed(KEY_LEFT);
-    bool    up    = IsKeyPressed(KEY_UP);
-    bool   down   = IsKeyPressed(KEY_DOWN);
+    bool    up    = IsKeyPressed(k_up);
+    bool   down   = IsKeyPressed(k_down);
 
     bool can_go_right = cursor.pos.x < (win_w - G::xofs - cursor.width);
     bool can_go_left  = cursor.pos.x > G::xofs;
@@ -200,17 +207,30 @@ void UPDATE(void)
     G::loop();
     cursor.loop();
 
+
+
     // Cursor movement
-    if (can_go_right && (IsKeyPressed(KEY_RIGHT) || IsKeyPressedRepeat(KEY_RIGHT))) {
+
+    if (can_go_right && (hadKeyPressing(k_right))) {
         cursor.right();
     }
-    else if (can_go_left && (IsKeyPressed(KEY_LEFT) || IsKeyPressedRepeat(KEY_LEFT))) {
-        cursor.left();
-    }
-    else if (can_go_down && (IsKeyPressed(KEY_DOWN) || IsKeyPressedRepeat(KEY_DOWN))) {
+    else if ( !can_go_right  &&  can_go_down  &&  (hadKeyPressing(k_right))) {
+        cursor.pos.x =  G::xofs;
         cursor.down();
     }
-    else if (can_go_up && (IsKeyPressed(KEY_UP) || IsKeyPressedRepeat(KEY_UP))) {
+
+    else if (can_go_left && (hadKeyPressing(k_left))) {
+        cursor.left();
+    }
+    else if ( !can_go_left  &&  can_go_up  &&  (hadKeyPressing(k_left)) ) {
+        cursor.pos.x =  G::xofs + G::scene_width - cursor.width;
+        cursor.up();
+    }
+
+    else if (can_go_down && ( hadKeyPressing(k_down) )) {
+        cursor.down();
+    }
+    else if (can_go_up && ( hadKeyPressing(k_up) )) {
         cursor.up();
     }
 
@@ -234,7 +254,7 @@ void UPDATE(void)
         }
     }
 
-    if ((IsKeyPressed(KEY_ENTER) || IsKeyPressedRepeat(KEY_ENTER))) {
+    if (hadKeyPressing(k_enter)) {
         if (can_go_down) {
             cursor.pos.x =  G::xofs;
             cursor.down();
@@ -242,7 +262,7 @@ void UPDATE(void)
     }
 
     // Backspace logic
-    if ((IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE))) {
+    if (hadKeyPressing(k_backspace)) {
         if (can_go_left) {
             cursor.left();
             uint x_idx = xtoi(cursor.pos.x);
@@ -287,3 +307,6 @@ void CLEAN(void)
 {
     UnloadFont(font);
 }
+
+
+#endif // __cplusplus >= 202302
