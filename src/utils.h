@@ -44,7 +44,7 @@ Module z
 
 
 
-// FIXED Strvec class (replace in utils.h):
+
 class Strvec
 {
 public:
@@ -59,6 +59,7 @@ public:
         // Expand horizontally if needed
         if (x >= data[y].size()) {
             data[y].resize(x + 1, '\0');
+
             // Update max_width if this row is now longer
             if (data[y].size() > last_max_width) {
                 last_max_width = data[y].size();
@@ -75,6 +76,13 @@ public:
         return data[y][x];
     }
 
+    // safe access method
+    char get(uint x, uint y) const {
+        if (y >= data.size() || x >= data[y].size())
+            return '\0';
+        return data[y][x];
+    }
+
     string& at(uint i) {
         return data.at(i);
     }
@@ -82,8 +90,7 @@ public:
     const string& at(uint i) const {
         return data.at(i);
     }
-    
-    // FIXED: Just return the cached width instead of calculating every time
+
     uint64 getWidth() const {
         return last_max_width;
     }

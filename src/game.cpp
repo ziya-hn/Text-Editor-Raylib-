@@ -22,6 +22,9 @@ Module G  ///  Global/Editor, short name convention
     Strvec map;
 
 
+    constinit uint tabSize = 4u;
+
+
     void start(void) {
         
     }
@@ -56,7 +59,7 @@ struct Cursor
     Color font_color  =  { 240, 240, 240, 255 };
 
 
-    //  Cursor draw style
+    ///  Cursor draw style
     enum class CursorDrawStyle  {
         line,
         rectangle,
@@ -97,6 +100,45 @@ struct Cursor
 
     void down(void) {
         this->pos.y += height;
+    }
+
+    ///////////////////////////
+
+    void rightEx(void) {
+        if (pos.x < (win_w - G::xofs - width)) {
+            this->pos.x += width;
+        }
+    }
+
+    void leftEx(void) {
+        if (pos.x > G::xofs) {
+            this->pos.x += width;
+        }
+    }
+
+    void upEx(void) {
+        if (pos.y < (win_h - G::yofs - height)) {
+            this->pos.y += height;
+        }
+    }
+
+    void downEx(void) {
+        if (pos.y > G::yofs) {
+            this->pos.y += height;
+        }
+    }
+
+    /////////////////////////////
+
+    template <char _default_char = '\0'>
+    void delete_char(f _x, f _y) {
+        G::map.operator()(xtoi(_x), ytoi(_y)) = _default_char;
+    }
+    //  Overload
+    template <char _default_char = '\0'>
+    // delete overlapping char
+    void delete_char() {
+        G::map.operator()(xtoi(cursor.pos.x), ytoi(cursor.pos.y)) = _default_char;
     }
 
 
@@ -187,8 +229,18 @@ void SETUP(void)
 }
 
 
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////
 
- void UPDATE(void)
+void UPDATE(void)
 {
     using Module z;
 
@@ -254,6 +306,7 @@ void SETUP(void)
         }
     }
 
+    // Skip line with Enter
     if (hadKeyPressing(k_enter)) {
         if (can_go_down) {
             cursor.pos.x =  G::xofs;
@@ -261,20 +314,31 @@ void SETUP(void)
         }
     }
 
+    // Tab pressing
+    if (hadKeyPressing(k_tab)) {
+        if (can_go_right) {
+            uint _times = G::tabSize;
+            while(_times && can_go_right) { --_times; cursor.right(); }
+        }
+    }
+
     // Backspace logic
     if (hadKeyPressing(k_backspace)) {
         if (can_go_left) {
             cursor.left();
-            uint x_idx = xtoi(cursor.pos.x);
-            uint y_idx = ytoi(cursor.pos.y);
-            G::map(x_idx, y_idx) = '\0';
+            cursor.delete_char();
         }
-        else if (can_go_up)  {
-            //  if cursor is in beginning of line, goto up,
+        else if (!can_go_left && can_go_up) {
             cursor.up();
-            //  and if next char in $map is not null, then advance
-            while ( G::map((cursor.pos.x), (cursor.pos.y))  != '\0' ) {
-                cursor.right();
+            cursor.pos.x = G::xofs + G::scene_width - cursor.width;
+            
+            // Find last character, but limit iterations to prevent freeze
+            for (uint i = 0; i < 100 && cursor.pos.x > G::xofs; ++i) {
+                if (G::map(xtoi(cursor.pos.x), ytoi(cursor.pos.y)) != '\0') {
+                    cursor.right();
+                    break;
+                }
+                cursor.left();
             }
         }
     }

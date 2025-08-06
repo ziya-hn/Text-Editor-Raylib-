@@ -35,6 +35,7 @@ enum K_Keys
     k_enter     =  KEY_ENTER,
     k_esc       =  KEY_ESCAPE,
     k_space     =  KEY_SPACE,  // yeah, its not control-key
+    k_tab       =  KEY_TAB,
     k_backspace =  KEY_BACKSPACE,
     Kdelete  =  KEY_DELETE,
 
