@@ -6,8 +6,13 @@
 
 inline namespace Settings
 {
-    constexpr inline uint16 win_w   =  1500u;
-    constexpr inline uint16 win_h   =  840u;
+    constexpr inline uint16 init_win_w   =  1500u;
+    constexpr inline uint16 init_win_h   =  840u;
+
+    // Define as inline variables to avoid multiple definition errors
+    inline constinit uint16 win_w = init_win_w;
+    inline constinit uint16 win_h = init_win_h;
+
     constexpr inline Color  win_clr =  {0u, 0u, 0u, 255u};
 
     constexpr inline uint16  FPS    =  60u;

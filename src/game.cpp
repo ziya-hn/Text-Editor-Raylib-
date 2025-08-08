@@ -7,15 +7,24 @@
 
 Font font;
 
+
+uint xtoi(f x);
+uint ytoi(f y);
+
 Module G  ///  Global/Editor, short name convention
 {
+    // Global-Scale-Variables
+    f GX = 1.f;
+    f GY = 1.f;
+    f GS = 1.f;
+
     constexpr Color bgcolor = { 9, 16, 30, 255 };
 
-    constexpr uint xofs =  80u;
-    constexpr uint yofs = 120u;
+    f xofs =  80u;
+    f yofs = 120u;
 
-    constexpr uint scene_width  = win_w - 2*xofs;
-    constexpr uint scene_height = win_h - 2*yofs;
+    f scene_width  = win_w - 2*xofs;
+    f scene_height = win_h - 2*yofs;
 
     Rectangle rec = { xofs, yofs, scene_width, scene_height };
 
@@ -26,17 +35,22 @@ Module G  ///  Global/Editor, short name convention
 
 
     void start(void) {
-        
+        win_w = Settings::init_win_w;
+        win_h = Settings::init_win_h;
     }
     
     void loop(void)
     {
         using Module z;
 
+        Settings::win_w = GetScreenWidth();
+        Settings::win_h = GetScreenHeight();
+
+
         if     ( hadKeyPressing(k_right) )  log "`right` -pressed\n";
-        else if ( hadKeyPressing(k_left)  )  log "`left` -pressed\n";
-        else if ( hadKeyPressing(k_up)    )  log "`up` -pressed\n"  ;
-        else if ( hadKeyPressing(k_down)  )  log "`down` -pressed\n";
+        else if( hadKeyPressing(k_left)  )  log "`left` -pressed\n";
+        else if( hadKeyPressing(k_up)    )  log "`up` -pressed\n"  ;
+        else if( hadKeyPressing(k_down)  )  log "`down` -pressed\n";
         else;
 
     }
@@ -138,9 +152,13 @@ struct Cursor
     template <char _default_char = '\0'>
     // delete overlapping char
     void delete_char() {
-        G::map.operator()(xtoi(cursor.pos.x), ytoi(cursor.pos.y)) = _default_char;
+        G::map.operator()(xtoi(this->pos.x), ytoi(this->pos.y)) = _default_char;
     }
 
+
+    void writexy(const char _c, Vector2 _pos) {
+        G::map.data[ytoi(_pos.y)].insert(xtoi(_pos.x), 1, _c);
+    }
 
     void start(void) {
 
@@ -210,11 +228,11 @@ Vector2 to_i(f x, f y) {
 }
 
 uint xtoi(f x) {
-    return  { ((uint)x - G::xofs) / cursor.width };
+    return  { uint(x - G::xofs) / cursor.width };
 }
 
 uint ytoi(f y) {
-    return  { ((uint)y - G::yofs) / cursor.height };
+    return  { uint(y - G::yofs) / cursor.height };
 }
 
 
@@ -229,16 +247,11 @@ void SETUP(void)
 }
 
 
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
+/**********************************************/\
+/**********************************************/\
+/**********************************************/\
+/**********************************************/\
+/**********************************************/\
 
 void UPDATE(void)
 {
@@ -254,7 +267,7 @@ void UPDATE(void)
     bool can_go_down  = cursor.pos.y < (win_h - G::yofs - cursor.height);
     bool can_go_up    = cursor.pos.y > G::yofs;
 
-    uchar pressed_char = GetCharPressed();
+    uchar current_char = GetCharPressed();
 
     G::loop();
     cursor.loop();
@@ -267,8 +280,8 @@ void UPDATE(void)
         cursor.right();
     }
     else if ( !can_go_right  &&  can_go_down  &&  (hadKeyPressing(k_right))) {
-        cursor.pos.x =  G::xofs;
         cursor.down();
+        cursor.pos.x =  G::xofs;
     }
 
     else if (can_go_left && (hadKeyPressing(k_left))) {
@@ -286,6 +299,9 @@ void UPDATE(void)
         cursor.up();
     }
 
+    else;
+
+
     //////////
     DRAWER();
     //////////
@@ -294,17 +310,20 @@ void UPDATE(void)
     cursor.draw();
 
 
-    // Normal writing -(not rendering)
-    if (z::printable(pressed_char)) {
-        uint x_idx = xtoi(cursor.pos.x);
-        uint y_idx = ytoi(cursor.pos.y);
-
-        G::map(x_idx, y_idx) = pressed_char;
+    // Writing Logic -(not rendering)
+    if (z::printable(current_char)) {
 
         if (can_go_right) {
+            cursor.writexy(current_char, cursor.pos);
             cursor.right();
         }
+        else if (!can_go_right && can_go_down) {
+            cursor.down();
+            cursor.pos.x =  G::xofs;
+            cursor.writexy(current_char, cursor.pos);
+        }
     }
+
 
     // Skip line with Enter
     if (hadKeyPressing(k_enter)) {
@@ -324,39 +343,59 @@ void UPDATE(void)
 
     // Backspace logic
     if (hadKeyPressing(k_backspace)) {
-        if (can_go_left) {
+        // get current grid positions
+        uint x_i = xtoi(cursor.pos.x);
+        uint y_i = ytoi(cursor.pos.y);
+
+        // normal case: not at line-start -> move left and delete
+        if (x_i > 0) {
             cursor.left();
-            cursor.delete_char();
+            cursor.delete_char(); // deletes char at new cursor cell
         }
-        else if (!can_go_left && can_go_up) {
-            cursor.up();
-            cursor.pos.x = G::xofs + G::scene_width - cursor.width;
-            
-            // Find last character, but limit iterations to prevent freeze
-            for (uint i = 0; i < 100 && cursor.pos.x > G::xofs; ++i) {
-                if (G::map(xtoi(cursor.pos.x), ytoi(cursor.pos.y)) != '\0') {
-                    cursor.right();
-                    break;
-                }
-                cursor.left();
+        // at line-start and there is a previous line
+        else if (y_i > 0) {
+            uint prev_y = y_i - 1;
+
+            // find last non-null column on previous line
+            int last_idx = -1;
+            for (uint col = 0; col < G::map.getWidth(); ++col) {
+                if (G::map(col, prev_y) != '\0') last_idx = (int)col;
+            }
+
+            // move cursor up to the previous line row
+            cursor.pos.y = (f)(G::yofs + prev_y * cursor.height);
+
+            if (last_idx >= 0) {
+                // place cursor on the last character and delete it
+                cursor.pos.x = (f)(G::xofs + (uint)last_idx * cursor.width + cursor.width);
+                //cursor.delete_char();
+            } else {
+                // previous line empty -> go to its start
+                cursor.pos.x = (f)G::xofs;
             }
         }
     }
 
+
     
     // Render all characters at their *grid* positions
-    for (uint i = 0; i < G::map.getHeight(); ++i) {
+    for (uint i = 0; i < G::map.getHeight(); ++i)
+    {
         for (uint j = 0; j < G::map.getWidth(); ++j) {
             char ch = G::map(j, i);
 
-            if (ch != '\0') {
-                Vector2 char_pos = {
-                    (float)(G::xofs + j * cursor.width),
-                    (float)(G::yofs + i * cursor.height)
+            if (ch != '\0')
+            {
+                Vector2 char_pos
+                ={
+                    (f)(G::xofs + j * cursor.width),
+                    (f)(G::yofs + i * cursor.height)
                 };
 
                 gfx.write(ch, char_pos);
             }
+
+            if (ch);
         }
     }
 

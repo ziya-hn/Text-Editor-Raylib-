@@ -98,6 +98,15 @@ public:
     uint64 getHeight() const {
         return std::max((uint64)data.size(), (uint64)50);
     }
+
+
+    bool str_has_only_null(uint index) {
+        uint8 checker = false;
+        foreach (const char& c  : this->data.at(index)) {
+            if (c == '\0') ++checker;
+        }
+        return bool(checker);
+    }
 };
 
 
